@@ -32,7 +32,8 @@ import {
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts';
 import { cn } from '../lib/utils';
 import { generateMedicalResponse, solveExamQuestion } from '../services/gemini';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from './MarkdownRenderer';
+import KnowledgeGraph from './KnowledgeGraph';
 import { translations, Language } from '../translations';
 
 interface GraphNode {
@@ -71,34 +72,9 @@ export default function ScholarZone({ lang }: { lang: Language }) {
   const [imageType, setImageType] = useState<string | null>(null);
   const [learningPath, setLearningPath] = useState<string | null>(null);
   const [isGeneratingPath, setIsGeneratingPath] = useState(false);
-  const [selectedConcept, setSelectedConcept] = useState<string | null>(null);
   const [radarData, setRadarData] = useState(initialRadarData);
   const [activeSubTab, setActiveSubTab] = useState<'solver' | 'practice' | 'mentor' | 'simulation' | 'olympiad'>('solver');
   
-  const [nodes, setNodes] = useState<GraphNode[]>(initialNodes);
-
-  // Sync node labels with current language
-  useEffect(() => {
-    setNodes(prev => prev.map(node => {
-      const translatedNode = t.graphNodes.find(gn => gn.id === node.id);
-      if (translatedNode) {
-        return { ...node, label: translatedNode.label };
-      }
-      return node;
-    }));
-  }, [lang, t.graphNodes]);
-
-  // Sync radar subjects with current language
-  useEffect(() => {
-    setRadarData(prev => prev.map((item, i) => ({
-      ...item,
-      subject: t.radarSubjects[i] || item.subject
-    })));
-  }, [lang, t.radarSubjects]);
-
-  const [isAddingNode, setIsAddingNode] = useState(false);
-  const [newNodeName, setNewNodeName] = useState('');
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [selectedResource, setSelectedResource] = useState<any | null>(null);
   const [resourceContent, setResourceContent] = useState<string | null>(null);
   const [isLoadingResource, setIsLoadingResource] = useState(false);
@@ -201,68 +177,6 @@ export default function ScholarZone({ lang }: { lang: Language }) {
     } finally {
       setIsGeneratingPath(false);
     }
-  };
-
-  const handleConceptClick = async (concept: string) => {
-    setSelectedConcept(concept);
-    setSolution(null);
-    setIsSolving(true);
-    try {
-      const prompt = `Explain the biological concept of "${concept}" in the context of advanced medical biology. 
-      Include:
-      1. Definition and molecular basis.
-      2. Clinical significance.
-      3. A high-level research question related to it.
-      Respond in ${lang === 'vi' ? 'Vietnamese' : 'English'}. Use Markdown.`;
-      const response = await generateMedicalResponse(prompt, 'Scholar Mode');
-      setSolution(response || "No data available.");
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSolving(false);
-    }
-  };
-
-  const handleAddNode = () => {
-    if (!newNodeName.trim()) return;
-    const newNode: GraphNode = {
-      id: Date.now().toString(),
-      x: 400 + (Math.random() * 100 - 50),
-      y: 200 + (Math.random() * 100 - 50),
-      label: newNodeName,
-      color: 'bg-slate-500'
-    };
-    setNodes([...nodes, newNode]);
-    setNewNodeName('');
-    setIsAddingNode(false);
-  };
-
-  const handleResetGraph = () => {
-    setNodes(initialNodes);
-    setSelectedConcept(null);
-  };
-
-  const handleDeleteNode = (id: string) => {
-    setNodes(nodes.filter(n => n.id !== id));
-    if (selectedConcept === nodes.find(n => n.id === id)?.label) {
-      setSelectedConcept(null);
-    }
-  };
-
-  const handleNodeDrag = (e: React.MouseEvent | React.TouchEvent, id: string) => {
-    if (draggingNodeId !== id) return;
-    
-    const svg = e.currentTarget.closest('svg');
-    if (!svg) return;
-    
-    const rect = svg.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, x, y } : n));
   };
 
   const handleResourceClick = async (resource: any) => {
@@ -573,7 +487,7 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                   <button onClick={() => setLearningPath(null)} className="text-slate-400 hover:text-white"><X size={20} /></button>
                 </div>
                 <div className="prose prose-invert max-w-none text-slate-300 text-sm markdown-body">
-                  <ReactMarkdown>{learningPath}</ReactMarkdown>
+                  <MarkdownRenderer content={learningPath} />
                 </div>
               </motion.div>
             )}
@@ -597,7 +511,7 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                 
                 <div className="prose prose-slate max-w-none">
                   <div className="text-slate-700 leading-relaxed markdown-body">
-                    <ReactMarkdown>{solution}</ReactMarkdown>
+                    <MarkdownRenderer content={solution} />
                   </div>
                 </div>
 
@@ -653,7 +567,7 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                   animate={{ opacity: 1 }}
                   className="prose prose-slate max-w-none bg-slate-50 p-8 rounded-3xl border border-slate-100 markdown-body"
                 >
-                  <ReactMarkdown>{quiz}</ReactMarkdown>
+                  <MarkdownRenderer content={quiz} />
                 </motion.div>
               ) : (
                 <div className="py-20 flex flex-col items-center justify-center text-slate-400">
@@ -698,7 +612,7 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                     msg.role === 'mentor' ? "bg-slate-100 rounded-tl-none text-slate-700" : "bg-blue-600 rounded-tr-none text-white"
                   )}>
                     <div className="markdown-body">
-                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      <MarkdownRenderer content={msg.text} />
                     </div>
                   </div>
                   {msg.role === 'user' && <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center text-slate-500 font-bold text-xs">YOU</div>}
@@ -764,7 +678,10 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                     className="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all cursor-pointer group"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-600 text-[10px] font-bold rounded uppercase">{item.level}</span>
+                      <div className="flex gap-2">
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-600 text-[10px] font-bold rounded uppercase">{item.level}</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded uppercase">{item.category}</span>
+                      </div>
                       <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{item.type}</span>
                     </div>
                     <h4 className="font-bold text-slate-800 group-hover:text-amber-700 transition-colors">{item.title}</h4>
@@ -817,7 +734,7 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                         </div>
                       ) : (
                         <div className="prose prose-slate max-w-none markdown-body">
-                          <ReactMarkdown>{resourceContent || "No content available."}</ReactMarkdown>
+                          <MarkdownRenderer content={resourceContent || "No content available."} />
                         </div>
                       )}
                     </div>
@@ -1038,108 +955,129 @@ export default function ScholarZone({ lang }: { lang: Language }) {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col min-h-[600px]">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
-                      <Timer size={20} />
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Left Column: Current Question */}
+                <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col min-h-[600px]">
+                  <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                        <Timer size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800">{t.timeLeft}</h3>
+                        <p className="text-xs font-bold text-blue-600">{formatTime(examState.timeLeft)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800">{t.timeLeft}</h3>
-                      <p className="text-xs font-bold text-blue-600">{formatTime(examState.timeLeft)}</p>
+                    <button 
+                      onClick={finishExam}
+                      className="px-6 py-2 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-100"
+                    >
+                      {t.submitExam}
+                    </button>
+                  </div>
+
+                  <div className="flex-1 p-8">
+                    <div className="max-w-3xl mx-auto space-y-8">
+                      <div className="space-y-4">
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">{t.question} {examState.currentQuestionIndex + 1} of {examState.questions.length}</span>
+                        <h2 className="text-xl font-bold text-slate-800 leading-relaxed">
+                          {examState.questions[examState.currentQuestionIndex].question}
+                        </h2>
+                      </div>
+
+                      {examState.config.type === 'mcq' ? (
+                        <div className="grid grid-cols-1 gap-4">
+                          {examState.questions[examState.currentQuestionIndex].options?.map((option, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleAnswerSelect(i)}
+                              className={cn(
+                                "p-5 rounded-2xl border-2 text-left transition-all group relative overflow-hidden",
+                                examState.userAnswers[examState.currentQuestionIndex] === i 
+                                  ? "border-blue-600 bg-blue-50 shadow-md" 
+                                  : "border-slate-100 hover:border-blue-200 hover:bg-slate-50"
+                              )}
+                            >
+                              <div className="flex items-center gap-4 relative z-10">
+                                <span className={cn(
+                                  "w-10 h-10 rounded-xl flex items-center justify-center font-bold transition-colors",
+                                  examState.userAnswers[examState.currentQuestionIndex] === i 
+                                    ? "bg-blue-600 text-white" 
+                                    : "bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600"
+                                )}>
+                                  {String.fromCharCode(65 + i)}
+                                </span>
+                                <span className={cn(
+                                  "font-medium",
+                                  examState.userAnswers[examState.currentQuestionIndex] === i ? "text-blue-800" : "text-slate-700"
+                                )}>
+                                  {option}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <textarea 
+                          value={examState.userAnswers[examState.currentQuestionIndex] as string}
+                          onChange={(e) => handleAnswerSelect(e.target.value)}
+                          placeholder="Type your detailed answer here..."
+                          className="w-full h-64 p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                        />
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+
+                  <div className="p-6 border-t border-slate-100 flex justify-between bg-slate-50/50 rounded-b-3xl">
+                    <button 
+                      disabled={examState.currentQuestionIndex === 0}
+                      onClick={() => setExamState(prev => ({ ...prev, currentQuestionIndex: prev.currentQuestionIndex - 1 }))}
+                      className="flex items-center gap-2 px-6 py-2 text-slate-500 font-bold hover:text-blue-600 disabled:opacity-30 transition-colors"
+                    >
+                      <ChevronLeft size={20} />
+                      Previous
+                    </button>
+                    <button 
+                      disabled={examState.currentQuestionIndex === examState.questions.length - 1}
+                      onClick={() => setExamState(prev => ({ ...prev, currentQuestionIndex: prev.currentQuestionIndex + 1 }))}
+                      className="flex items-center gap-2 px-6 py-2 text-blue-600 font-bold hover:text-blue-700 disabled:opacity-30 transition-colors"
+                    >
+                      Next
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Column: Question Navigation Grid */}
+                <div className="w-full lg:w-80 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 h-fit sticky top-24">
+                  <h3 className="font-bold text-slate-800 mb-4">{lang === 'vi' ? 'Danh sách câu hỏi' : 'Question Navigation'}</h3>
+                  <div className="grid grid-cols-5 gap-2">
                     {examState.questions.map((_, i) => (
-                      <div 
+                      <button 
                         key={i}
+                        onClick={() => setExamState(prev => ({ ...prev, currentQuestionIndex: i }))}
                         className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all",
-                          examState.currentQuestionIndex === i ? "bg-blue-600 text-white shadow-md" : 
-                          examState.userAnswers[i] !== (examState.config.type === 'mcq' ? -1 : "") ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400"
+                          "aspect-square rounded-lg flex items-center justify-center text-sm font-bold transition-all",
+                          examState.currentQuestionIndex === i ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-600 ring-offset-2" : 
+                          examState.userAnswers[i] !== (examState.config.type === 'mcq' ? -1 : "") ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-400 hover:bg-slate-200"
                         )}
                       >
                         {i + 1}
-                      </div>
+                      </button>
                     ))}
                   </div>
-                  <button 
-                    onClick={finishExam}
-                    className="px-6 py-2 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-100"
-                  >
-                    {t.submitExam}
-                  </button>
-                </div>
-
-                <div className="flex-1 p-8">
-                  <div className="max-w-3xl mx-auto space-y-8">
-                    <div className="space-y-4">
-                      <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">{t.question} {examState.currentQuestionIndex + 1} of {examState.questions.length}</span>
-                      <h2 className="text-xl font-bold text-slate-800 leading-relaxed">
-                        {examState.questions[examState.currentQuestionIndex].question}
-                      </h2>
+                  
+                  <div className="mt-6 space-y-3 text-xs font-medium text-slate-500">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded bg-blue-600"></div> {lang === 'vi' ? 'Hiện tại' : 'Current'}
                     </div>
-
-                    {examState.config.type === 'mcq' ? (
-                      <div className="grid grid-cols-1 gap-4">
-                        {examState.questions[examState.currentQuestionIndex].options?.map((option, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handleAnswerSelect(i)}
-                            className={cn(
-                              "p-5 rounded-2xl border-2 text-left transition-all group relative overflow-hidden",
-                              examState.userAnswers[examState.currentQuestionIndex] === i 
-                                ? "border-blue-600 bg-blue-50 shadow-md" 
-                                : "border-slate-100 hover:border-blue-200 hover:bg-slate-50"
-                            )}
-                          >
-                            <div className="flex items-center gap-4 relative z-10">
-                              <span className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center font-bold transition-colors",
-                                examState.userAnswers[examState.currentQuestionIndex] === i 
-                                  ? "bg-blue-600 text-white" 
-                                  : "bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600"
-                              )}>
-                                {String.fromCharCode(65 + i)}
-                              </span>
-                              <span className={cn(
-                                "font-medium",
-                                examState.userAnswers[examState.currentQuestionIndex] === i ? "text-blue-800" : "text-slate-700"
-                              )}>
-                                {option}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <textarea 
-                        value={examState.userAnswers[examState.currentQuestionIndex] as string}
-                        onChange={(e) => handleAnswerSelect(e.target.value)}
-                        placeholder="Type your detailed answer here..."
-                        className="w-full h-64 p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
-                      />
-                    )}
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded bg-blue-100"></div> {lang === 'vi' ? 'Đã trả lời' : 'Answered'}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded bg-slate-100"></div> {lang === 'vi' ? 'Chưa trả lời' : 'Unanswered'}
+                    </div>
                   </div>
-                </div>
-
-                <div className="p-6 border-t border-slate-100 flex justify-between bg-slate-50/50">
-                  <button 
-                    disabled={examState.currentQuestionIndex === 0}
-                    onClick={() => setExamState(prev => ({ ...prev, currentQuestionIndex: prev.currentQuestionIndex - 1 }))}
-                    className="flex items-center gap-2 px-6 py-2 text-slate-500 font-bold hover:text-blue-600 disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronLeft size={20} />
-                    Previous
-                  </button>
-                  <button 
-                    disabled={examState.currentQuestionIndex === examState.questions.length - 1}
-                    onClick={() => setExamState(prev => ({ ...prev, currentQuestionIndex: prev.currentQuestionIndex + 1 }))}
-                    className="flex items-center gap-2 px-6 py-2 text-slate-500 font-bold hover:text-blue-600 disabled:opacity-30 transition-colors"
-                  >
-                    Next
-                    <ChevronRight size={20} />
-                  </button>
                 </div>
               </div>
             )}
@@ -1148,189 +1086,7 @@ export default function ScholarZone({ lang }: { lang: Language }) {
       </AnimatePresence>
 
       {/* Knowledge Graph Section */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Bio-Nexus Knowledge Graph</h2>
-            <p className="text-sm text-slate-500">{t.knowledgeGraphDesc}</p>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="flex items-center gap-2 text-[10px] text-blue-600 font-bold bg-blue-50 w-fit px-3 py-1 rounded-full">
-                <Info size={12} />
-                {lang === 'vi' ? 'Kéo để di chuyển, nhấp để xem chi tiết' : 'Drag to move, click for details'}
-              </div>
-              <button 
-                onClick={() => setIsAddingNode(true)}
-                className="flex items-center gap-2 text-[10px] text-emerald-600 font-bold bg-emerald-50 w-fit px-3 py-1 rounded-full hover:bg-emerald-100 transition-colors"
-              >
-                <Plus size={12} />
-                {t.addNode}
-              </button>
-              <button 
-                onClick={handleResetGraph}
-                className="flex items-center gap-2 text-[10px] text-slate-600 font-bold bg-slate-50 w-fit px-3 py-1 rounded-full hover:bg-slate-100 transition-colors"
-              >
-                <RotateCcw size={12} />
-                {t.resetGraph}
-              </button>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full uppercase">Genetics</span>
-            <span className="px-3 py-1 bg-teal-50 text-teal-600 text-[10px] font-bold rounded-full uppercase">Physiology</span>
-          </div>
-        </div>
-
-        <div className="relative h-[500px] bg-slate-50 rounded-3xl overflow-hidden border border-slate-100">
-          <svg 
-            className="w-full h-full cursor-crosshair"
-            onMouseMove={(e) => draggingNodeId && handleNodeDrag(e, draggingNodeId)}
-            onMouseUp={() => setDraggingNodeId(null)}
-            onMouseLeave={() => setDraggingNodeId(null)}
-          >
-            {/* Dynamic Lines */}
-            {nodes.map((node, i) => {
-              if (i === 0) return null;
-              const prevNode = nodes[i - 1];
-              return (
-                <line 
-                  key={`line-${i}`}
-                  x1={prevNode.x} 
-                  y1={prevNode.y} 
-                  x2={node.x} 
-                  y2={node.y} 
-                  stroke="#CBD5E1" 
-                  strokeWidth="1" 
-                  strokeDasharray="4" 
-                  className="opacity-50"
-                />
-              );
-            })}
-
-            {/* Nodes */}
-            {nodes.map((node) => (
-              <g 
-                key={node.id} 
-                className="cursor-pointer group" 
-                onMouseDown={() => setDraggingNodeId(node.id)}
-                onClick={(e) => {
-                  if (draggingNodeId) return;
-                  handleConceptClick(node.label);
-                }}
-              >
-                {/* Glow Effect */}
-                <circle 
-                  cx={node.x} 
-                  cy={node.y} 
-                  r="20" 
-                  className={cn(
-                    "fill-current opacity-0 group-hover:opacity-20 transition-opacity blur-md",
-                    node.color.replace('bg-', 'text-')
-                  )}
-                />
-                <circle 
-                  cx={node.x} 
-                  cy={node.y} 
-                  r="14" 
-                  className={cn(
-                    node.color, 
-                    "transition-all group-hover:r-18 shadow-lg", 
-                    selectedConcept === node.label && "ring-4 ring-blue-200",
-                    draggingNodeId === node.id && "scale-125 opacity-80"
-                  )}
-                />
-                <text 
-                  x={node.x} 
-                  y={node.y + 35} 
-                  textAnchor="middle" 
-                  className={cn(
-                    "text-[12px] font-bold transition-colors select-none",
-                    selectedConcept === node.label ? "fill-blue-600" : "fill-slate-600 group-hover:fill-blue-600"
-                  )}
-                >
-                  {node.label}
-                </text>
-              </g>
-            ))}
-          </svg>
-
-          {/* Add Node UI */}
-          <AnimatePresence>
-            {isAddingNode && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute top-6 left-6 bg-white p-4 rounded-2xl border border-slate-200 shadow-xl z-20 flex gap-2"
-              >
-                <input 
-                  type="text" 
-                  value={newNodeName}
-                  onChange={(e) => setNewNodeName(e.target.value)}
-                  placeholder={t.nodeName}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-                <button 
-                  onClick={handleAddNode}
-                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700"
-                >
-                  {t.addNode}
-                </button>
-                <button 
-                  onClick={() => setIsAddingNode(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={16} />
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <AnimatePresence>
-            {selectedConcept && (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="absolute top-6 right-6 w-80 bg-white/90 backdrop-blur-xl p-6 rounded-3xl border border-white shadow-2xl z-10"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-slate-800">{t.nodeDetails}</h3>
-                  <button onClick={() => setSelectedConcept(null)} className="p-1 hover:bg-slate-100 rounded-full"><X size={16} /></button>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-3 bg-blue-50 rounded-2xl flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Concept</span>
-                      <span className="text-lg font-bold text-blue-800">{selectedConcept}</span>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        const node = nodes.find(n => n.label === selectedConcept);
-                        if (node) handleDeleteNode(node.id);
-                      }}
-                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                      title={t.deleteNode}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <div className="prose prose-slate max-w-none text-xs leading-relaxed markdown-body">
-                    <ReactMarkdown>{solution || "Loading concept details..."}</ReactMarkdown>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="absolute bottom-6 left-6 bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-100 shadow-sm max-w-xs">
-            <h4 className="text-xs font-bold text-slate-800 mb-1">{t.conceptLinkage}</h4>
-            <p className="text-[10px] text-slate-500 leading-relaxed">
-              BioNexus uses LangGraph to map the hierarchy from molecular biology to systemic physiology. Click a node to explore deep textbook citations.
-            </p>
-          </div>
-        </div>
-      </div>
+      <KnowledgeGraph lang={lang} />
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

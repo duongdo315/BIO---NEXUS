@@ -22,7 +22,7 @@ import ScholarZone from './components/ScholarZone';
 import ClinicalZone from './components/ClinicalZone';
 import PatientZone from './components/PatientZone';
 import { generateMedicalResponse } from './services/gemini';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from './components/MarkdownRenderer';
 import { translations, Language } from './translations';
 
 type AppMode = 'student' | 'medpro' | 'patient';
@@ -32,11 +32,14 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [lang, setLang] = useState<Language>('en');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [user, setUser] = useState({
     name: 'Jane Doe',
     role: 'Medical Student',
     email: 'jane.doe@bionexus.edu',
-    avatar: 'JD'
+    avatar: 'JD',
+    bio: 'Passionate about cardiology and AI in medicine.',
+    password: '••••••••'
   });
 
   const t = translations[lang];
@@ -75,6 +78,8 @@ export default function App() {
       name: formData.get('name') as string,
       email: formData.get('email') as string,
       role: formData.get('role') as string,
+      bio: formData.get('bio') as string,
+      password: formData.get('password') as string,
     });
     setIsProfileOpen(false);
   };
@@ -184,10 +189,49 @@ export default function App() {
               <Languages size={14} />
               {lang === 'en' ? 'EN' : 'VI'}
             </button>
-            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full relative">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="p-2 text-slate-500 hover:bg-slate-100 rounded-full relative"
+              >
+                <Bell size={20} />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
+              
+              <AnimatePresence>
+                {isNotificationsOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50"
+                  >
+                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                      <h3 className="font-bold text-slate-800">{lang === 'vi' ? 'Thông báo' : 'Notifications'}</h3>
+                      <button className="text-xs text-blue-600 font-semibold hover:underline">{lang === 'vi' ? 'Đánh dấu đã đọc' : 'Mark all read'}</button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {[
+                        { title: lang === 'vi' ? 'Bài tập mới' : 'New Assignment', desc: lang === 'vi' ? 'Bài tập Sinh lý học đã được giao.' : 'Physiology assignment has been posted.', time: '2h ago', unread: true },
+                        { title: lang === 'vi' ? 'Cập nhật hệ thống' : 'System Update', desc: lang === 'vi' ? 'BioNexus AI đã được nâng cấp.' : 'BioNexus AI has been upgraded.', time: '1d ago', unread: false },
+                        { title: lang === 'vi' ? 'Kết quả bài thi' : 'Exam Results', desc: lang === 'vi' ? 'Điểm thi thử IBO của bạn đã có.' : 'Your IBO mock exam score is ready.', time: '2d ago', unread: false },
+                      ].map((notif, i) => (
+                        <div key={i} className={cn("p-4 border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors", notif.unread && "bg-blue-50/50")}>
+                          <div className="flex items-start justify-between mb-1">
+                            <h4 className={cn("text-sm font-semibold", notif.unread ? "text-slate-800" : "text-slate-600")}>{notif.title}</h4>
+                            <span className="text-[10px] text-slate-400">{notif.time}</span>
+                          </div>
+                          <p className="text-xs text-slate-500">{notif.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 text-center border-t border-slate-100 bg-slate-50">
+                      <button className="text-xs font-bold text-slate-500 hover:text-slate-700">{lang === 'vi' ? 'Xem tất cả' : 'View All'}</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
               <Activity size={18} className="text-emerald-500" />
@@ -218,7 +262,7 @@ export default function App() {
                     </button>
                   </div>
                   <div className="prose prose-slate max-w-none markdown-body">
-                    <ReactMarkdown>{searchResult}</ReactMarkdown>
+                    <MarkdownRenderer content={searchResult} />
                   </div>
                 </div>
               </motion.div>
@@ -276,33 +320,54 @@ export default function App() {
                   </div>
 
                   <form onSubmit={handleProfileUpdate} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.name}</label>
-                      <input 
-                        name="name"
-                        defaultValue={user.name}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.name}</label>
+                        <input 
+                          name="name"
+                          defaultValue={user.name}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.role}</label>
+                        <select 
+                          name="role"
+                          defaultValue={user.role}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+                        >
+                          <option value="Medical Student">{t.medicalStudent}</option>
+                          <option value="Doctor">{t.doctor}</option>
+                          <option value="Patient">{t.patient}</option>
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.email}</label>
                       <input 
                         name="email"
+                        type="email"
                         defaultValue={user.email}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.role}</label>
-                      <select 
-                        name="role"
-                        defaultValue={user.role}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
-                      >
-                        <option value="Medical Student">{t.medicalStudent}</option>
-                        <option value="Doctor">{t.doctor}</option>
-                        <option value="Patient">{t.patient}</option>
-                      </select>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{lang === 'vi' ? 'Mật khẩu' : 'Password'}</label>
+                      <input 
+                        name="password"
+                        type="password"
+                        defaultValue={user.password}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">{lang === 'vi' ? 'Tiểu sử' : 'Bio'}</label>
+                      <textarea 
+                        name="bio"
+                        defaultValue={user.bio}
+                        rows={2}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+                      />
                     </div>
                     <div className="pt-4 flex gap-3">
                       <button 

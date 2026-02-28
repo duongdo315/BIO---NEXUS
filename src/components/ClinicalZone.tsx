@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { generateMedicalResponse } from '../services/gemini';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from './MarkdownRenderer';
 import { translations, Language } from '../translations';
 import { GoogleGenAI, Modality } from "@google/genai";
 
@@ -33,7 +33,11 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
   const [isThinking, setIsThinking] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
-  const [differential, setDifferential] = useState<string[]>(['Appendicitis', 'Gastroenteritis', 'UTI']);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([
+    lang === 'vi' ? 'Cơn đau bắt đầu từ khi nào?' : 'When did the pain start?',
+    lang === 'vi' ? 'Đau có lan đi đâu không?' : 'Does the pain radiate anywhere?',
+    lang === 'vi' ? 'Anh có buồn nôn hay nôn không?' : 'Have you experienced any nausea or vomiting?'
+  ]);
   const [labResults, setLabResults] = useState<Record<string, string>>({});
 
   const [patientStatus, setPatientStatus] = useState({
@@ -98,24 +102,25 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
       A medical student (the doctor) just said: "${userMsg}". 
       Respond as the patient, describing your pain and feelings. Keep it concise but realistic.
       Respond in ${lang === 'vi' ? 'Vietnamese' : 'English'}.
-      Also, provide an updated list of 3 possible differential diagnoses for the doctor in a separate section marked [DIFFERENTIAL].`;
+      Also, provide a list of 3 suggested follow-up questions for the medical student to ask next in a separate section marked [QUESTIONS].`;
       
       const response = await generateMedicalResponse(prompt, 'Med-Pro Mode');
       if (response) {
-        const [patientText, diffText] = response.split('[DIFFERENTIAL]');
+        const [patientText, questionsText] = response.split('[QUESTIONS]');
         setMessages([...newMessages, { role: 'patient', text: patientText.trim() }]);
-        if (diffText) {
-          setDifferential(diffText.trim().split('\n').map(d => d.replace(/^\d+\.\s*/, '').trim()));
+        if (questionsText) {
+          setSuggestedQuestions(questionsText.trim().split('\n').filter(q => q.trim() !== '').map(q => q.replace(/^\d+\.\s*/, '').replace(/^- /, '').trim()));
         }
       }
 
-      // Update differential diagnosis based on interaction
-      if (newMessages.length % 3 === 0 && !response?.includes('[DIFFERENTIAL]')) {
-        const diffPrompt = `Based on this clinical transcript, provide a list of the top 3 differential diagnoses. Return ONLY a comma-separated list.
-        Transcript: ${newMessages.map(m => `${m.role}: ${m.text}`).join('\n')}`;
+      // Update suggested questions based on interaction if not provided in the main response
+      if (newMessages.length % 3 === 0 && !response?.includes('[QUESTIONS]')) {
+        const diffPrompt = `Based on this clinical transcript, provide a list of the top 3 suggested follow-up questions for the medical student to ask the patient. Return ONLY a newline-separated list.
+        Transcript: ${newMessages.map(m => `${m.role}: ${m.text}`).join('\n')}
+        Respond in ${lang === 'vi' ? 'Vietnamese' : 'English'}.`;
         const diffResponse = await generateMedicalResponse(diffPrompt, 'Med-Pro Mode');
         if (diffResponse) {
-          setDifferential(diffResponse.split(',').map(s => s.trim()));
+          setSuggestedQuestions(diffResponse.split('\n').filter(s => s.trim() !== '').map(s => s.replace(/^\d+\.\s*/, '').replace(/^- /, '').trim()));
         }
       }
     } catch (error) {
@@ -226,12 +231,16 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
           </div>
 
           <div className="p-6 border-t border-slate-100">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Differential Diagnosis</h4>
-            <div className="flex flex-wrap gap-2">
-              {differential.map((d, i) => (
-                <span key={i} className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full border border-slate-200">
-                  {d}
-                </span>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{t.suggestedQuestions}</h4>
+            <div className="flex flex-col gap-2">
+              {suggestedQuestions.map((q, i) => (
+                <button 
+                  key={i} 
+                  onClick={() => setInputValue(q)}
+                  className="text-left px-4 py-2 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-sm rounded-xl border border-slate-100 hover:border-blue-200 transition-all"
+                >
+                  {q}
+                </button>
               ))}
             </div>
           </div>
@@ -278,7 +287,7 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
                         msg.role === 'patient' ? "bg-slate-100 rounded-tl-none text-slate-700" : "bg-teal-600 rounded-tr-none text-white shadow-md"
                       )}>
                         <div className="markdown-body">
-                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                          <MarkdownRenderer content={msg.text} />
                         </div>
                       </div>
                       {msg.role === 'doctor' && <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center font-bold flex-shrink-0 text-xs">DOC</div>}
@@ -325,7 +334,7 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
                         <div className="mt-3">
                           {lab.status === 'Ready' ? (
                             <div className="p-3 bg-white rounded-xl border border-emerald-100 text-[10px] text-slate-600 max-h-32 overflow-y-auto markdown-body">
-                              <ReactMarkdown>{labResults[lab.name]}</ReactMarkdown>
+                              <MarkdownRenderer content={labResults[lab.name]} />
                             </div>
                           ) : isOrdering === lab.id ? (
                             <div className="flex items-center gap-2 text-xs text-teal-600 font-bold">
@@ -359,7 +368,7 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
                         <div key={i} className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
                           <h5 className="text-xs font-bold text-teal-600 mb-2">{name}</h5>
                           <div className="text-xs text-slate-600 markdown-body">
-                            <ReactMarkdown>{result}</ReactMarkdown>
+                            <MarkdownRenderer content={result} />
                           </div>
                         </div>
                       ))}
@@ -387,7 +396,7 @@ export default function ClinicalZone({ lang }: { lang: Language }) {
                         </div>
                       </div>
                       <div className="markdown-body text-sm text-slate-700">
-                        <ReactMarkdown>{feedback}</ReactMarkdown>
+                        <MarkdownRenderer content={feedback} />
                       </div>
                     </div>
                   ) : (

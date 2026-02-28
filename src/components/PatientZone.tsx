@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { generateMedicalResponse } from '../services/gemini';
-import ReactMarkdown from 'react-markdown';
+import MarkdownRenderer from './MarkdownRenderer';
 import { translations, Language } from '../translations';
 import { generateMockThreads, Thread } from '../data/mockThreads';
 
@@ -201,19 +201,19 @@ export default function PatientZone({ lang }: { lang: Language }) {
               </defs>
 
               <motion.path
-                d="M100,20 C110,20 120,30 120,45 C120,60 110,70 100,70 C90,70 80,60 80,45 C80,30 90,20 100,20 M100,75 L100,180 M100,85 L60,140 M100,85 L140,140 M100,180 L70,280 M100,180 L130,280"
+                d="M100,15 C112,15 120,25 120,38 C120,48 114,58 108,63 C122,66 138,72 148,85 C155,95 162,120 165,145 C166,155 156,158 152,148 C145,130 140,105 132,90 L132,180 C135,220 142,280 145,330 C146,345 130,348 125,335 C118,300 112,240 108,210 C104,240 98,300 91,335 C86,348 70,345 71,330 C74,280 81,220 84,180 L84,90 C76,105 71,130 64,148 C60,158 50,155 51,145 C54,120 61,95 68,85 C78,72 94,66 108,63 C102,58 96,48 96,38 C96,25 104,15 100,15 Z"
                 fill="none"
                 stroke="#0D9488"
-                strokeWidth="8"
+                strokeWidth="6"
                 strokeLinecap="round"
                 filter="url(#glow)"
                 initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 0.2 }}
+                animate={{ pathLength: 1, opacity: 0.15 }}
                 transition={{ duration: 2, ease: "easeInOut" }}
               />
 
               <motion.path
-                d="M100,20 C110,20 120,30 120,45 C120,60 110,70 100,70 C90,70 80,60 80,45 C80,30 90,20 100,20 M100,75 L100,180 M100,85 L60,140 M100,85 L140,140 M100,180 L70,280 M100,180 L130,280"
+                d="M100,15 C112,15 120,25 120,38 C120,48 114,58 108,63 C122,66 138,72 148,85 C155,95 162,120 165,145 C166,155 156,158 152,148 C145,130 140,105 132,90 L132,180 C135,220 142,280 145,330 C146,345 130,348 125,335 C118,300 112,240 108,210 C104,240 98,300 91,335 C86,348 70,345 71,330 C74,280 81,220 84,180 L84,90 C76,105 71,130 64,148 C60,158 50,155 51,145 C54,120 61,95 68,85 C78,72 94,66 108,63 C102,58 96,48 96,38 C96,25 104,15 100,15 Z"
                 fill="none"
                 stroke="#0D9488"
                 strokeWidth="2"
@@ -223,73 +223,49 @@ export default function PatientZone({ lang }: { lang: Language }) {
                 transition={{ duration: 2.5, ease: "easeInOut" }}
               />
 
-              {/* Circulatory System Simulation */}
-              <motion.path
-                d="M100,100 L100,180 M100,100 L60,140 M100,100 L140,140"
-                fill="none"
-                stroke="#EF4444"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-                animate={{ strokeDashoffset: [0, -20] }}
-                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                className="opacity-30"
-              />
-
-              {/* Heart */}
-              <motion.g 
-                className="cursor-pointer"
-                onClick={() => handleOrganClick('Heart')}
-              >
-                <motion.circle
-                  cx="100"
-                  cy="100"
-                  r="14"
-                  fill="#EF4444"
-                  className="opacity-20 blur-sm"
-                  animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ repeat: Infinity, duration: 0.8 }}
-                />
-                <motion.circle
-                  cx="100"
-                  cy="100"
-                  r="10"
-                  fill={selectedOrgan === 'Heart' ? '#EF4444' : '#0D9488'}
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ repeat: Infinity, duration: 0.8 }}
-                />
-              </motion.g>
-
               {/* Brain */}
-              <motion.g 
-                className="cursor-pointer"
-                onClick={() => handleOrganClick('Brain')}
-              >
-                <motion.circle
-                  cx="100"
-                  cy="45"
-                  r="12"
-                  fill="#8B5CF6"
-                  className="opacity-20 blur-sm"
-                  animate={{ opacity: [0.2, 0.5, 0.2] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                />
-                <motion.circle
-                  cx="100"
-                  cy="45"
-                  r="8"
-                  fill={selectedOrgan === 'Brain' ? '#8B5CF6' : '#0D9488'}
-                />
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Brain')}>
+                <path d="M100,22 C112,22 116,30 114,40 C112,48 104,50 100,48 C96,50 88,48 86,40 C84,30 88,22 100,22 Z" fill={selectedOrgan === 'Brain' ? '#8B5CF6' : '#E2E8F0'} stroke="#8B5CF6" strokeWidth="2" />
               </motion.g>
 
               {/* Lungs */}
-              <motion.g 
-                className="cursor-pointer"
-                onClick={() => handleOrganClick('Lungs')}
-              >
-                <motion.circle cx="85" cy="120" r="10" fill="#10B981" className="opacity-20 blur-sm" />
-                <motion.circle cx="115" cy="120" r="10" fill="#10B981" className="opacity-20 blur-sm" />
-                <motion.circle cx="85" cy="120" r="7" fill={selectedOrgan === 'Lungs' ? '#10B981' : '#0D9488'} />
-                <motion.circle cx="115" cy="120" r="7" fill={selectedOrgan === 'Lungs' ? '#10B981' : '#0D9488'} />
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Lungs')}>
+                <path d="M86,75 C94,75 96,90 94,105 C92,115 84,118 78,112 C74,100 78,80 86,75 Z" fill={selectedOrgan === 'Lungs' ? '#10B981' : '#E2E8F0'} stroke="#10B981" strokeWidth="2" />
+                <path d="M114,75 C106,75 104,90 106,105 C108,115 116,118 122,112 C126,100 122,80 114,75 Z" fill={selectedOrgan === 'Lungs' ? '#10B981' : '#E2E8F0'} stroke="#10B981" strokeWidth="2" />
+              </motion.g>
+
+              {/* Heart */}
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Heart')}>
+                <motion.path 
+                  d="M102,92 C108,88 114,94 110,102 C106,110 98,112 96,106 C92,98 96,92 102,92 Z" 
+                  fill={selectedOrgan === 'Heart' ? '#EF4444' : '#E2E8F0'} 
+                  stroke="#EF4444" 
+                  strokeWidth="2" 
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ repeat: Infinity, duration: 0.8 }}
+                  style={{ transformOrigin: '102px 100px' }}
+                />
+              </motion.g>
+
+              {/* Liver */}
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Liver')}>
+                <path d="M76,110 C90,106 106,112 110,120 C112,126 100,130 90,128 C80,126 74,120 76,110 Z" fill={selectedOrgan === 'Liver' ? '#F59E0B' : '#E2E8F0'} stroke="#F59E0B" strokeWidth="2" />
+              </motion.g>
+
+              {/* Stomach */}
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Stomach')}>
+                <path d="M112,114 C122,112 126,122 120,130 C114,136 104,132 104,124 C104,118 108,116 112,114 Z" fill={selectedOrgan === 'Stomach' ? '#3B82F6' : '#E2E8F0'} stroke="#3B82F6" strokeWidth="2" />
+              </motion.g>
+
+              {/* Kidneys */}
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Kidneys')}>
+                <path d="M84,130 C88,128 92,134 90,140 C88,146 82,144 80,138 C78,132 80,130 84,130 Z" fill={selectedOrgan === 'Kidneys' ? '#8B5CF6' : '#E2E8F0'} stroke="#8B5CF6" strokeWidth="2" />
+                <path d="M116,130 C112,128 108,134 110,140 C112,146 118,144 120,138 C122,132 120,130 116,130 Z" fill={selectedOrgan === 'Kidneys' ? '#8B5CF6' : '#E2E8F0'} stroke="#8B5CF6" strokeWidth="2" />
+              </motion.g>
+
+              {/* Intestines */}
+              <motion.g className="cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleOrganClick('Intestines')}>
+                <path d="M82,142 C92,138 108,138 118,142 C124,150 120,166 110,170 C100,174 90,170 80,166 C76,158 76,148 82,142 Z" fill={selectedOrgan === 'Intestines' ? '#EC4899' : '#E2E8F0'} stroke="#EC4899" strokeWidth="2" />
               </motion.g>
             </svg>
 
@@ -359,7 +335,7 @@ export default function PatientZone({ lang }: { lang: Language }) {
                     <button onClick={() => setOrganInsight(null)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
                   </div>
                   <div className="text-sm text-slate-700 markdown-body">
-                    <ReactMarkdown>{organInsight}</ReactMarkdown>
+                    <MarkdownRenderer content={organInsight} />
                   </div>
                 </motion.div>
               ) : (
@@ -595,7 +571,7 @@ export default function PatientZone({ lang }: { lang: Language }) {
               
               <div className="flex-1 overflow-y-auto p-8 space-y-8">
                 <div className="text-slate-700 leading-relaxed markdown-body">
-                  <ReactMarkdown>{selectedThread.content}</ReactMarkdown>
+                  <MarkdownRenderer content={selectedThread.content} />
                 </div>
                 
                 <div className="flex gap-2">
