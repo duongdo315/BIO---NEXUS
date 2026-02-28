@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Bio-Synergy Ecosystem",
+  "description": "A comprehensive medical and biological knowledge ecosystem connecting students, doctors, and patients with verified AI-driven insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
